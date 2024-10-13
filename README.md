@@ -2,9 +2,11 @@
 This is just a quick script to update or install the Elden Ring Seamless Coop mod.
 
 ## Executables
-Download the .exe file for Windows machines.
-Download the .bin file for Linux machines.
-Currently no OS X/MacOS support. I don't have one to test with...
+Go to the latest releases: [here](https://github.com/Gongaku/Update_Seamless_Coop/releases)
+* Download the .exe file for Windows machines.
+* Download the .bin file for Linux machines.
+* Currently no OS X/MacOS support. I don't have one to test with...
+* Alternatively just use the Python Script
 
 ## Usage
 ```sh
