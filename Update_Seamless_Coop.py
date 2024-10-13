@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import argparse
 import json
 import logging
 import os
@@ -9,12 +8,15 @@ import requests
 import shutil
 import sys
 import vdf
-import zipfile
+from argparse import ArgumentParser, Namespace
 from time import gmtime
+from tempfile import mkdtemp
+from zipfile import ZipFile
+from _version import __version__
 
 
-def parse_arguments() -> None:
-    parser = argparse.ArgumentParser(
+def parse_arguments() -> Namespace:
+    parser = ArgumentParser(
         description='''
         This tool is meant to download the latest version of the Seamless Coop Elden Ring Mod.
         This will install the mod for you if not installed.
@@ -24,7 +26,13 @@ def parse_arguments() -> None:
     )
 
     parser.add_argument(
-        '-v',
+        '-u',
+        '--update',
+        action='store_true',
+        help='Update the script to the latest version from Github'
+    )
+
+    parser.add_argument(
         '--verbose',
         action='store_true',
         default=False,
@@ -32,10 +40,9 @@ def parse_arguments() -> None:
     )
 
     parser.add_argument(
-        '-u',
-        '--update',
-        action='store_true',
-        help='Update the script to the latest version from Github'
+        '--version',
+        action='version',
+        version='%(prog)s ' + __version__
     )
 
     return parser.parse_args()
@@ -108,21 +115,99 @@ def download_release(url: str, output_path: str, filename: str, file_type: str='
         version = download_link.split('/')[-2]
 
     temporary_zip = os.path.join(output_path, filename)
+    
+    with open(os.path.join(output_path, 'current_version'), 'w') as version_number:
+        version_number.write(version)
+    
     logging.debug('Beginning download of latest release from git repo')
-
+    
     with open(temporary_zip, mode='wb') as release:
         release.write(requests.get(download_link).content)
-        logging.info(f'Downloaded latest release: {version}')
+        logging.info(f'Downloaded release: {version}')
 
     return temporary_zip
 
 
 def extract_file(extract_path: str, filename: str) -> str: 
-    with zipfile.ZipFile(filename, 'r') as zip_ref:
+    with ZipFile(filename, 'r') as zip_ref:
         zip_ref.extractall(extract_path)
         logging.debug(f"Extracted latest release to \"{extract_path}\"")
         return zip_ref.filename
 
+
+def self_update(output_path: str) -> None:
+    if getattr(sys, 'frozen', False):
+        application_path = sys.executable
+    elif __file__:
+        application_path = __file__
+    script_path, script_name = os.path.split(application_path)
+
+    logging.info(f'Updating "{script_name}"')
+
+    if 'exe' in script_name:
+        operating_system = platform.system()
+        release_file = download_release(
+            url="https://api.github.com/repos/Gongaku/Update_Seamless_Coop/releases/latest",
+            output_path=output_path,
+            filename=script_name,
+            file_type='exe'
+        )
+
+        backup_file = os.path.join(
+            script_path, 
+            os.path.splitext(script_name)[0]+'.bak'
+        )
+        if os.path.exists(backup_file):
+            os.remove(backup_file)
+
+        shutil.move(
+            application_path,
+            backup_file
+        )
+
+        logging.debug(f"Moved old version of script to {backup_file}")
+        shutil.copy2(
+            release_file,
+            application_path
+        )
+
+        if operating_system == "Windows":
+            logging.info(f"You can delete \"{backup_file}\". It's a backup of the old version of {script_name}")
+    else:
+        release_file = download_release(
+            url="https://api.github.com/repos/Gongaku/Update_Seamless_Coop/releases/latest",
+            output_path=output_path,
+            filename=script_name,
+            file_type='py'
+        )
+        temporary_zip = os.path.splitext(script_name)[0]+'.zip'
+        shutil.move(
+            release_file, 
+            temporary_zip
+        )
+
+        extract_file(
+            script_path,
+            temporary_zip
+        )
+
+        directories = [item for item in os.listdir(script_path) if os.path.isdir(item) and 'git' not in item]
+        directories.sort(key=lambda s: os.path.getmtime(os.path.join(script_path, s)))
+        extracted_dir = directories[-1]
+        
+        os.remove(temporary_zip)
+        shutil.move(
+            os.path.join(script_path, extracted_dir+'/'+script_name),
+            __file__
+        )
+        shutil.rmtree(extracted_dir)
+
+    with open(os.path.join(output_path, 'current_version'), 'r') as version_file:
+        version = version_file.read()
+    logging.info(f"Script has self updated from v{__version__} to {version}")
+    shutil.rmtree(output_path)
+    sys.exit(0)
+    
 
 if __name__ == '__main__':
     args = parse_arguments()
@@ -135,41 +220,10 @@ if __name__ == '__main__':
         format=' %(levelname)-6s | %(asctime)s.%(msecs)03dZ | %(message)s'
     )
 
-    temp_path = r"C:\Temp" if platform.system() == "Windows" else "/tmp"
-
+    temp_path = mkdtemp()
     if args.update:
-        script_path, script_name = os.path.split(__file__)
+        self_update(temp_path)
 
-        logging.info(f'Updating "{__file__}"')
-        file_type = 'exe' if 'exe' in script_name else 'py'
-        release_file = download_release(
-            url="https://api.github.com/repos/Gongaku/Update_Seamless_Coop/releases/latest",
-            output_path=temp_path,
-            filename=script_name,
-            file_type=file_type
-        )
-        shutil.move(
-            release_file, 
-            os.path.splitext(script_name)[0]+'.zip'
-        )
-        
-        extracted_file = extract_file(
-            script_path, 
-            os.path.splitext(script_name)[0]+'.zip'
-        )
-        # print(os.listdir())
-        directories = [item for item in os.listdir(script_path) if os.path.isdir(item) and 'git' not in item]
-        extracted_dir = directories[0]
-        
-        os.remove(os.path.splitext(script_name)[0]+'.zip')
-        shutil.move(
-            os.path.join(script_path, extracted_dir+'/'+script_name),
-            __file__
-        )
-        shutil.rmtree(extracted_dir)
-        sys.exit(0)
-
-    steam_path = get_steam_path()
     installation_path: str = get_install_path()
     mod_path: str = os.path.join(
         installation_path,
@@ -179,7 +233,6 @@ if __name__ == '__main__':
         installation_path,
         "SeamlessCoop/ersc_settings.ini"
     )
-
     temporary_zip: str = download_release(
         url="https://api.github.com/repos/LukeYui/EldenRingSeamlessCoopRelease/releases/latest",
         output_path=temp_path, 
@@ -216,3 +269,4 @@ if __name__ == '__main__':
         logging.info(
             "As you're a Linux user, you will need to add the ersc_launcher.exe as a Steam Game and force proton compatability"
         )
+    shutil.rmtree(temp_path)
