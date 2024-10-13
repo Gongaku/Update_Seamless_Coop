@@ -16,7 +16,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           body: |
-            ${{ github.ref}}
+            ${{ github.ref_name }}
             * Download the .exe file for Windows machines
             * Download the .bin file for Linux machines 
             * No support for OS X/MacOS. I don't have a Mac to test on...

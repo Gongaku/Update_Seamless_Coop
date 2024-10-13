@@ -105,6 +105,9 @@ def download_release(
     filename: str,
     file_type: str = 'exe'
 ) -> str:
+    """
+    Download requested file from github
+    """
     git_releases = requests.get(url)
 
     if git_releases.status_code != 200:
@@ -137,53 +140,42 @@ def extract_file(
     extract_path: str,
     filename: str
 ) -> str:
+    """
+    Extracts zip file.
+
+    Returns extracted file/directory name
+    """
+    output_file = None
     with ZipFile(filename, 'r') as zip_ref:
         zip_ref.extractall(extract_path)
         logging.debug(f"Extracted latest release to \"{extract_path}\"")
-        return zip_ref.filename
+        output_file = zip_ref.filename
+    return output_file
 
 
 def self_update(
     output_path: str
 ) -> None:
+    """
+    Performs call to git to update the script to the latest version.
+
+    Performs different actions depending on if script is an executable
+    or python file
+    """
     if getattr(sys, 'frozen', False):
         application_path = sys.executable
     elif __file__:
         application_path = __file__
     script_path, script_name = os.path.split(application_path)
 
+    latest_version = json.loads(requests.get(
+        "https://api.github.com/repos/Gongaku/Update_Seamless_Coop/releases/latest"
+    ).content)['tag_name']
+    if latest_version == __version__:
+        logging.info('Already at latest version')
+
     logging.info(f'Updating "{script_name}"')
-
-    if 'exe' in script_name:
-        operating_system = platform.system()
-        release_file = download_release(
-            url="https://api.github.com/repos/Gongaku/Update_Seamless_Coop/releases/latest",
-            output_path=output_path,
-            filename=script_name,
-            file_type='exe'
-        )
-
-        backup_file = os.path.join(
-            script_path,
-            os.path.splitext(script_name)[0]+'.bak'
-        )
-        if os.path.exists(backup_file):
-            os.remove(backup_file)
-
-        shutil.move(
-            application_path,
-            backup_file
-        )
-
-        logging.debug(f"Moved old version of script to {backup_file}")
-        shutil.copy2(
-            release_file,
-            application_path
-        )
-
-        if operating_system == "Windows":
-            logging.info(f"You can delete \"{backup_file}\". It's a backup of the old version of {script_name}")
-    else:
+    if 'py' in script_name:
         release_file = download_release(
             url="https://api.github.com/repos/Gongaku/Update_Seamless_Coop/releases/latest",
             output_path=output_path,
@@ -211,6 +203,35 @@ def self_update(
             __file__
         )
         shutil.rmtree(extracted_dir)
+    else:
+        operating_system = platform.system()
+        release_file = download_release(
+            url="https://api.github.com/repos/Gongaku/Update_Seamless_Coop/releases/latest",
+            output_path=output_path,
+            filename=script_name,
+            file_type='exe'
+        )
+
+        backup_file = os.path.join(
+            script_path,
+            os.path.splitext(script_name)[0]+'.bak'
+        )
+        if os.path.exists(backup_file) and operating_system == "Windows":
+            os.remove(backup_file)
+
+        shutil.move(
+            application_path,
+            backup_file
+        )
+
+        logging.debug(f"Moved old version of script to {backup_file}")
+        shutil.copy2(
+            release_file,
+            application_path
+        )
+
+        if operating_system == "Windows":
+            logging.info(f"You can delete \"{backup_file}\". It's a backup of the old version of {script_name}")
 
     with open(os.path.join(output_path, 'current_version'), 'r') as version_file:
         version = version_file.read()
