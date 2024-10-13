@@ -1,27 +1,61 @@
-name: Create Python Executables
+name: Build Workflow
 
 on:
   push:
-    branches: [ main ]
+    tags:
+      - "v*"
 
 jobs:
-  build_linux:
+  create_release:
     runs-on: ubuntu-latest
+    if: ${{ always() }}
     steps:
-      - name: Create Linux Executable
-        uses: sayyid5416/pyinstaller@v1
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          python_ver: '3.12'
-          upload_exe_with_name: Update_Seamless_Coop.bin
-          options: --onefile, --name Update_Seamless_Coop.bin
+          body: |
+            ${{ github.ref}}
+            * Download the .exe file for Windows machines
+            * Download the .bin file for Linux machines 
+            * No support for OS X/MacOS. I don't have a Mac to test on...
+
+  build:
+    needs: [ create_release ]
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: Update_Seamless_Coop.bin
+            asset_name: Update_Seamless_Coop.bin
+          - os: windows-latest
+            artifact_name: Update_Seamless_Coop.exe
+            asset_name: Update_Seamless_Coop.exe
           
-  build_windows:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Create Linux Executable
-        uses: sayyid5416/pyinstaller@v1
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Install Python
+        uses: actions/setup-python@v4
         with:
-          python_ver: '3.12'
-          upload_exe_with_name: Update_Seamless_Coop.exe
-          options: --onefile, --name Update_Seamless_Coop.exe
-          
+          python-version: '3.12'
+          architecture: 'x64'
+
+      - name: Install Requirements
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run PyInstaller
+        run: |
+          python -m PyInstaller Update_Seamless_Coop.py --onefile --name ${{ matrix.artifact_name }} 
+
+      - name: Upload File to Release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }} 
+          file: dist/${{ matrix.artifact_name }} 
+          asset_name: ${{ matrix.asset_name }}
+          tag: ${{ github.ref }} 

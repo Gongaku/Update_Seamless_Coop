@@ -99,7 +99,12 @@ def get_install_path() -> str:
     return elden_ring_install
 
 
-def download_release(url: str, output_path: str, filename: str, file_type: str='exe') -> str:
+def download_release(
+    url: str,
+    output_path: str,
+    filename: str,
+    file_type: str = 'exe'
+) -> str:
     git_releases = requests.get(url)
 
     if git_releases.status_code != 200:
@@ -115,12 +120,12 @@ def download_release(url: str, output_path: str, filename: str, file_type: str='
         version = download_link.split('/')[-2]
 
     temporary_zip = os.path.join(output_path, filename)
-    
+
     with open(os.path.join(output_path, 'current_version'), 'w') as version_number:
         version_number.write(version)
-    
+
     logging.debug('Beginning download of latest release from git repo')
-    
+
     with open(temporary_zip, mode='wb') as release:
         release.write(requests.get(download_link).content)
         logging.info(f'Downloaded release: {version}')
@@ -128,14 +133,19 @@ def download_release(url: str, output_path: str, filename: str, file_type: str='
     return temporary_zip
 
 
-def extract_file(extract_path: str, filename: str) -> str: 
+def extract_file(
+    extract_path: str,
+    filename: str
+) -> str:
     with ZipFile(filename, 'r') as zip_ref:
         zip_ref.extractall(extract_path)
         logging.debug(f"Extracted latest release to \"{extract_path}\"")
         return zip_ref.filename
 
 
-def self_update(output_path: str) -> None:
+def self_update(
+    output_path: str
+) -> None:
     if getattr(sys, 'frozen', False):
         application_path = sys.executable
     elif __file__:
@@ -154,7 +164,7 @@ def self_update(output_path: str) -> None:
         )
 
         backup_file = os.path.join(
-            script_path, 
+            script_path,
             os.path.splitext(script_name)[0]+'.bak'
         )
         if os.path.exists(backup_file):
@@ -182,7 +192,7 @@ def self_update(output_path: str) -> None:
         )
         temporary_zip = os.path.splitext(script_name)[0]+'.zip'
         shutil.move(
-            release_file, 
+            release_file,
             temporary_zip
         )
 
@@ -194,7 +204,7 @@ def self_update(output_path: str) -> None:
         directories = [item for item in os.listdir(script_path) if os.path.isdir(item) and 'git' not in item]
         directories.sort(key=lambda s: os.path.getmtime(os.path.join(script_path, s)))
         extracted_dir = directories[-1]
-        
+
         os.remove(temporary_zip)
         shutil.move(
             os.path.join(script_path, extracted_dir+'/'+script_name),
@@ -207,7 +217,7 @@ def self_update(output_path: str) -> None:
     logging.info(f"Script has self updated from v{__version__} to {version}")
     shutil.rmtree(output_path)
     sys.exit(0)
-    
+
 
 if __name__ == '__main__':
     args = parse_arguments()
@@ -235,7 +245,7 @@ if __name__ == '__main__':
     )
     temporary_zip: str = download_release(
         url="https://api.github.com/repos/LukeYui/EldenRingSeamlessCoopRelease/releases/latest",
-        output_path=temp_path, 
+        output_path=temp_path,
         filename='ersc.zip'
     )
 
@@ -267,6 +277,7 @@ if __name__ == '__main__':
 
     if platform.system() == "Linux":
         logging.info(
-            "As you're a Linux user, you will need to add the ersc_launcher.exe as a Steam Game and force proton compatability"
+            "As you're a Linux user, you will need to add the ersc_launcher.exe"
+            "as a Steam Game and force proton compatability"
         )
     shutil.rmtree(temp_path)
