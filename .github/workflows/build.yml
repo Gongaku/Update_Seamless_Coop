@@ -19,7 +19,7 @@ jobs:
             ${{ github.ref_name }}
             * Download the .exe file for Windows machines
             * Download the .bin file for Linux machines 
-            * No support for OS X/MacOS. I don't have a Mac to test on...
+            * No support for OS X/MacOS. I don't have a Mac to test on... You can try using the .bin file though.
 
   build:
     needs: [ create_release ]

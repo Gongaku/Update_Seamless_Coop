@@ -10,15 +10,18 @@ Go to the latest releases: [here](https://github.com/Gongaku/Update_Seamless_Coo
 
 ## Usage
 ```sh
-usage: Update_Seamless_Coop.py [-h] [-u] [--verbose] [--version]
+usage: Update_Seamless_Coop.py [-h] [-s STEAM_PATH] [-u] [--verbose] [--version]
 
 This tool is meant to download the latest version of the Seamless Coop Elden Ring Mod. This
 will install the mod for you if not installed. If the mod is already installed, it will keep
 the old ini file and download the latest version of the mod.
 
 options:
-  -h, --help    show this help message and exit
-  -u, --update  Update the script to the latest version from Github
-  --verbose     Print all log message to console
-  --version     show program's version number and exit
+  -h, --help            show this help message and exit
+  -s STEAM_PATH, --steam_path STEAM_PATH
+                        Direct path to steam downloads folder. This is in case you have a non-
+                        standard steam location.
+  -u, --update          Update the script to the latest version from Github
+  --verbose             Print all log message to console
+  --version             show program's version number and exit
 ```
