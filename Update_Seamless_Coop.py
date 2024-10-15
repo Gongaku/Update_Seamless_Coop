@@ -26,6 +26,13 @@ def parse_arguments() -> Namespace:
     )
 
     parser.add_argument(
+        '-s',
+        '--steam_path',
+        type=str,
+        help="Direct path to steam downloads folder. This is in case you have a non-standard steam location."
+    )
+
+    parser.add_argument(
         '-u',
         '--update',
         action='store_true',
@@ -64,22 +71,27 @@ def get_steam_path() -> str:
     elif platform.system() == "Linux":
         steam_path = os.path.expanduser("~/.steam/steam")
     elif platform.system() == "Darwin":
-        raise NotImplementedError("OS X not supported")
+        steam_path = os.path.expanduser("~/Library/Application Support/Steam")
 
+    logging.debug(f"Validating Steam Path: {steam_path}")
+    if not os.path.exists(steam_path):
+        logging.error(f"Invalid Steam Path: {steam_path}")
+        logging.error("Unable to find steam path")
+        sys.exit(1)
+    logging.debug(f"Steam Path: {steam_path}")
     return steam_path
 
 
-def get_install_path() -> str:
+def get_install_path(steam_path: str) -> str:
     """
     Searchs through all of Steam library paths,
     to find where Elden Ring is installed on the system
 
     Returns Elden Ring installation path
     """
-    steam_path = os.path.join(
-        get_steam_path(),
-        'steamapps/libraryfolders.vdf'
-    )
+    steam_path = os.path.expanduser(steam_path)
+    logging.debug(f"Steam Libraries: {steam_path}")
+
     document = vdf.parse(open(steam_path))
     logging.info('Found Steam installation')
     logging.debug('Parsing all game directories for Elden Ring')
@@ -171,8 +183,10 @@ def self_update(
     latest_version = json.loads(requests.get(
         "https://api.github.com/repos/Gongaku/Update_Seamless_Coop/releases/latest"
     ).content)['tag_name']
-    if latest_version == __version__:
+
+    if latest_version == f'v{__version__}':
         logging.info('Already at latest version')
+        sys.exit(0)
 
     logging.info(f'Updating "{script_name}"')
     if 'py' in script_name:
@@ -243,10 +257,17 @@ def self_update(
 if __name__ == '__main__':
     args = parse_arguments()
 
+    script_directory, script_name = os.path.split(__file__)
+    log_file = os.path.splitext(script_name)[0] + '.log'
+    handlers = [
+        logging.StreamHandler(),
+        logging.FileHandler(filename=log_file, mode='w')
+    ]
     log_level = logging.DEBUG if args.verbose else logging.INFO
     logging.Formatter.converter = gmtime
     logging.basicConfig(
         level=log_level,
+        handlers=handlers,
         datefmt='%Y-%m-%dT%H:%M:%S',
         format=' %(levelname)-6s | %(asctime)s.%(msecs)03dZ | %(message)s'
     )
@@ -255,7 +276,12 @@ if __name__ == '__main__':
     if args.update:
         self_update(temp_path)
 
-    installation_path: str = get_install_path()
+    steam_path = args.steam_path if args.steam_path else get_steam_path()
+    steam_path = os.path.join(
+        steam_path,
+        'steamapps/libraryfolders.vdf'
+    )
+    installation_path: str = get_install_path(steam_path)
     mod_path: str = os.path.join(
         installation_path,
         "SeamlessCoop"
@@ -294,7 +320,7 @@ if __name__ == '__main__':
 
     # Ending Info
     operation = "Update" if mod_installed else "Installation"
-    logging.info(f"Completed {operation}")
+    logging.info(f"{operation} Complete")
 
     if platform.system() == "Linux":
         logging.info(
