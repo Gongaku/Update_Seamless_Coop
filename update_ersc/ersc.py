@@ -7,7 +7,7 @@ from pathlib import Path
 from tempfile import mkdtemp
 
 import update_ersc.releases as r
-import update_ersc.steam_libraries
+from update_ersc.steam_libraries import get_steam_root, fetch_game_libraries
 
 def get_elden_ring_path(steam_path: str | Path = None) -> Path:
     """
@@ -16,11 +16,11 @@ def get_elden_ring_path(steam_path: str | Path = None) -> Path:
 
     Returns Elden Ring installation path
     """
-    steam_root = steam_libraries.get_steam_root() \
+    steam_root = get_steam_root() \
         if steam_path is None \
         else steam_path
 
-    libaries = steam_libraries.fetch_game_libraries(steam_root)
+    libaries = fetch_game_libraries(steam_root)
 
     for libary in libaries:
         library_directory = Path(libary['path'])
